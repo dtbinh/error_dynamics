@@ -14,3 +14,11 @@
 
 # Simulink Code Generation
 slprj/
+
+# Latex
+*.aux
+*.log
+*.synctex.gz
+
+# Git
+*.gitignore~
