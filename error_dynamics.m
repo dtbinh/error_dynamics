@@ -48,9 +48,11 @@ n_u = sym_mat('n_u', kNumRotors, 1);
 
 % noise
 % process
-% TODO(rikba): noise on each thrust force instead.
-n_thrust = sym_mat('n_thrust', 3, 1);
-sigma_n_thrust = sym_mat('sigma_n_thrust', 3, 1);
+n_thrust = sym_mat('n_thrust', 3, kNumRotors);
+sigma_n_thrust = repmat(sym_mat('sigma_n_thrust', 3, 1), 1, kNumRotors);
+
+n_acc = sym_mat('n_acc', 3, 1);
+sigma_n_acc = sym_mat('sigma_n_acc', 3, 1);
 
 n_moment = sym_mat('n_moment', 3, 1);
 sigma_n_moment = sym_mat('sigma_n_moment', 3, 1);
@@ -72,8 +74,8 @@ dx = [dp; dv; dth; dw; dkThrust; dkMoment; dkInertia];
 u = n_u;
 
 % noise vector
-n_process_model = [n_thrust; n_moment];
-sigma_process_model = [sigma_n_thrust; sigma_n_moment];
+n_process_model = [n_thrust(:); n_acc; n_moment];
+sigma_process_model = [sigma_n_thrust(:); sigma_n_acc; sigma_n_moment];
 
 n_meas_model = [n_p_m; n_q_m];
 sigma_meas_model = [sigma_n_p_m * ones(3,1); sigma_n_q_m * ones(3,1)];
@@ -84,7 +86,7 @@ R_c = diag(sigma_meas_model.^2);
 
 % state equations
 thrusts = kThrust * [zeros(2,6); n_u.^2'];
-thrusts_real = (kThrust + dkThrust) * [zeros(2,6); n_u.^2'];
+thrusts_real = (kThrust + dkThrust) * [zeros(2,6); n_u.^2']  + n_thrust;
 
 moments = - kMoment * repmat(direction', 3, 1) .* thrusts + ...
     cross(thrusts, motor_location);
@@ -93,7 +95,7 @@ moments_real = - (kMoment + dkMoment)* repmat(direction', 3, 1) .* thrusts_real 
 
 acc_pred = 1 / kMass * sum(thrusts,2) - C' * [0; 0; kGravity] - cross(w,v);
 acc_real = 1 / kMass * sum(thrusts_real,2) - (C * dC)' * [0; 0; kGravity] ... 
-    - cross(w + dw, v + dv) + n_thrust;
+    - cross(w + dw, v + dv) + n_acc;
 
 w_dot_pred = inv(kInertia_mat) * (sum(moments,2) - ...
     cross(w, kInertia_mat * w));
@@ -132,3 +134,11 @@ F_c = jacobian(dx_dot, dx);
 % remove noise (zero mean) and higher order error terms
 F_c = subs(F_c, dx, zeros(size(dx)));
 F_c = subs(F_c, n_process_model, zeros(size(n_process_model)));
+F_c = simplify(F_c);
+
+% linearized noise matrix
+G_c = jacobian(dx_dot, n_process_model);
+% remove remaing error states (zero steady state) and higher order noise terms
+G_c = subs(G_c, dx, zeros(size(dx)));
+G_c = subs(G_c, n_process_model, zeros(size(n_process_model)));
+G_c = simplify(G_c);
