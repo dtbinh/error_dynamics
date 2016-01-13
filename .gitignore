@@ -19,6 +19,10 @@ slprj/
 *.aux
 *.log
 *.synctex.gz
+*.bbl
+*.bcf
+*.blg
+*.run.xml
 
 # Git
 *.gitignore~

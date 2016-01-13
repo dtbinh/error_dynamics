@@ -5,8 +5,69 @@
 \usepackage{amssymb}
 \usepackage{graphicx}
 \usepackage{lmodern}
-\title{Extended Kalman Filter}
+\usepackage[backend=biber,style=ieee]{biblatex}
+\bibliography{library.bib}
+\title{Extended Kalman Filter Derivations}
+\author{Rik Bähnemann}
 \begin{document}
 \maketitle
+\section{Introduction}
+Out of our simulated experiment trajectories we want to pick the trajectory which is most informative with respect to MAV parameter identification. Thus we need a measure of information that each experiment gives. We pick the overall uncertainty in parameter estimates as our information measure of choice. 
 
+In order to make a prediction about the uncertainty in parameter estimation we will perform an extended Kalman filter (EKF) estimation along the simulated trajectories. Due to its recursive fashion the EKF is well suited for computationally demanding estimations. Further it has been proven to converge with a hexacopter's non-linear dynamics by Burri \cite{burri2015robust}.
+
+In the following we will state the MAV dynamics model and derive the EKF equations. We will close the section by showing how different trajectories influence the simulated parameter uncertainty.
+
+\section{MAV Dynamics Model}
+The dominant forces and moments acting on a MAV origin from the aerodynamics forces and moments acting on each rotor and the gravitational force. Summing up these, we formulate the translational and rotational dynamics using Newton's respectively Euler's equations. We do not model motor dynamics, as they are much faster than the remaining and thus can be considered instantaneous.
+
+\subsection*{Assumptions}
+For simplification and because we consider their effects small in the experiment setup we neglect several effects. These are 
+\begin{itemize} 
+\item fuselage drag (small velocities),
+\item motor dynamics (very fast, considered instantaneous)
+\end{itemize}
+from the system perspective and on rotor dynamics
+\begin{itemize}
+\item rotor drag,
+\item blade flapping (stiff rotors),
+\item high order linear and angular velocity terms (small at hovering compared to blade tip speed),
+\item linear and angular acceleration of propellers (low mass),
+\item angular acceleration of motors (small at hovering),
+\item friction torque due to rotational motion.
+\end{itemize}
+Further we assume that the center of gravity (CoG) coincides with the geometric center in xy-direction with some offset in z-direction. And the directions of thrust at each rotor are perpendicular to the rotor planes and coincide.
+
+For parameter estimation we assume to know the vector from the CoG  to each rotor plane center $A_i$ in base coordinates $\mathbf{r}$ and the mass $m$.
+
+\subsection*{Model}
+Due to our assumptions we only consider thrust acting on each rotor blade. 
+\begin{align}
+\mathbf{T}_{i} = c_T n_i^2 \mathbf{e}_z + \mathbf{w}_{T,i}
+\end{align}   
+The constant $c_T$ describes our thrust constant. $n_i$ is the angular velocity of the $i$-th rotor blade. $\mathbf{e}_z$ is a unit vector in z-direction in base coordinates. $\mathbf{w}_{T,i}$ is zero mean gaussian noise with covariance $\boldsymbol{\sigma}_T^2 = \sigma_T^2 \mathbf{I}_{3\times3}$. It is accounting for the unstructured modelling error in blade dynamics.
+
+Our state vector consists of the vehicles position in inertial frame $\mathbf{p}$, its velocity in base coordinates $\mathbf{v}$, its rotation quaternion between base and inertial frame $\mathbf{q}$ and its angular velocity in base frame $\boldsymbol{\omega}$. Further the state is augmented by the the parameters for which we wish to estimate the estimation uncertainty. These are the thrust constant $c_T$, the moment constant $c_M$ and the three moments of inertia $\mathbf{j}$ which form the moments of inertia matrix $\mathbf{J} = diag(\mathbf{j})$.
+\begin{align}
+\mathbf{x} = \begin{bmatrix}
+\mathbf{p}^T & \mathbf{v}^T & \mathbf{q}^T & \boldsymbol{\omega} & c_T & c_M & \mathbf{j}^T
+\end{bmatrix} ^T
+\end{align}
+
+Using Newton's and Euler's equations, kinematic relations and the rotation matrix $\mathbf{C}(\mathbf{q})$ from base to inertial frame, we derive the non-linear state differential equations.
+\begin{subequations}
+\begin{align}
+\dot{\mathbf{p}} &= \mathbf{C}(\mathbf{q}) \cdot \mathbf{v} \\
+\dot{\mathbf{v}} &= \frac{1}{m} \sum_{i=1}^k \mathbf{T}_i - \mathbf{C}^T(\mathbf{q}) \cdot \mathbf{g} - \boldsymbol{\omega} \times \mathbf{v} + \mathbf{n}_T \\
+\dot{\mathbf{q}} &= \frac{1}{2} \boldsymbol{\Omega}(\boldsymbol{\omega}) \cdot \mathbf{q} \\
+\dot{\boldsymbol{\omega}} &= \mathbf{J}^{-1} \left( c_m \sum_{i=1}^k \left( \mathbf{T}_i + \mathbf{T}_i \times \mathbf{r} \right) - \boldsymbol{\omega} \times \mathbf{J} \boldsymbol{\omega} \right) + \mathbf{n}_M \\
+\dot{c}_T &= 0 \\
+\dot{c}_M &= 0 \\
+\dot{\mathbf{j}} &= \mathbf{0}
+\end{align}
+\end{subequations}
+
+$\boldsymbol{\Omega}(\boldsymbol{\omega})$ is the quaternion matrix representation of $\boldsymbol{\omega}$ with zero scalar component. $\mathbf{n}_T$ and $\mathbf{n}_M$ are zero mean Gaussian process noise with variance $\boldsymbol{\sigma}_T^2 = \sigma_T^2 \mathbf{I}_{3\times3}$ and $\boldsymbol{\sigma}_M^2 = \sigma_M^2 \mathbf{I}_{3\times3}$ accounting for modelling error in linear acceleration or angular acceleration respectively.
+
+\printbibliography
 \end{document}
