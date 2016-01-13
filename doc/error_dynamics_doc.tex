@@ -39,7 +39,7 @@ P_{0|0} &= P_0
 \end{align} \end{subequations}} \\
 Propagate & \parbox{7cm}{\begin{subequations}\begin{align}
 \hat{x}_{k|k-1} &= f_k(\hat{x}_{k-1}, u_k, 0) \label{eq:EKF:propagate:state}\\
-P_{k|k-1} &= F_k P_{k-1} F^T_k + Q_k
+P_{k|k-1} &= F_k P_{k-1} F^T_k + Q_k \label{eq:EKF:propagate:covariance}
 \end{align}\end{subequations}}  \\
 Update & \parbox{7cm}{\begin{subequations}\begin{align}
 \tilde{y}_k &= z_k - H_k \hat{x}_{k|k-1} = 0 \\
@@ -94,24 +94,40 @@ Using Newton's and Euler's equations, kinematic relations and the rotation matri
 \begin{align}
 \dot{\mathbf{p}} &= \mathbf{C}(\mathbf{q}) \cdot \mathbf{v} \\
 \dot{\mathbf{v}} &= \frac{1}{m} \sum_{i=1}^k \mathbf{T}_i - \mathbf{C}^T(\mathbf{q}) \cdot \mathbf{g} - \boldsymbol{\omega} \times \mathbf{v} + \mathbf{n}_T \\
-\dot{\mathbf{q}} &= \frac{1}{2} \boldsymbol{\Omega}(\boldsymbol{\omega}) \cdot \mathbf{q} \\
+\dot{\mathbf{q}} &= \frac{1}{2} \mathbf{q} \otimes \begin{bmatrix}
+0 \\ \boldsymbol{\omega}
+\end{bmatrix} \\
 \dot{\boldsymbol{\omega}} &= \mathbf{J}^{-1} \left( c_m \sum_{i=1}^k \left( \mathbf{T}_i + \mathbf{T}_i \times \mathbf{r} \right) - \boldsymbol{\omega} \times \mathbf{J} \boldsymbol{\omega} \right) + \mathbf{n}_M \\
 \dot{c}_T &= 0 \\
 \dot{c}_M &= 0 \\
 \dot{\mathbf{j}} &= \mathbf{0}
 \end{align}
 \end{subequations}
-
-$\boldsymbol{\Omega}(\boldsymbol{\omega})$ is the quaternion matrix representation of $\boldsymbol{\omega}$ with zero scalar component. $\mathbf{n}_T$ and $\mathbf{n}_M$ are zero mean Gaussian process noise with variance $\boldsymbol{\sigma}_T^2 = \sigma_T^2 \mathbf{I}_{3\times3}$ and $\boldsymbol{\sigma}_M^2 = \sigma_M^2 \mathbf{I}_{3\times3}$ accounting for modelling error in linear acceleration or angular acceleration respectively.
+$\otimes$ denotes quaternion multiplication. $\mathbf{n}_T$ and $\mathbf{n}_M$ are zero mean Gaussian process noise with variance $\boldsymbol{\sigma}_T^2 = \sigma_T^2 \mathbf{I}_{3\times3}$ and $\boldsymbol{\sigma}_M^2 = \sigma_M^2 \mathbf{I}_{3\times3}$ accounting for modelling error in linear acceleration or angular acceleration respectively.
 
 \subsection*{Discretization}
 The EKF propagation equations \ref{eq:EKF:propagate:state} require the continuous time system equations \ref{eq:model} in discretized form. We attain the discretized non-linear nominal system's equations using zero order hold discretization and setting the process noise to zero.
 \begin{align}
 f_k(\mathbf{x}_{k-1},\mathbf{u}_k, \mathbf{0}) &= \begin{bmatrix}
 \mathbf{p}_{k-1} + \mathbf{C}(\mathbf{q_{k-1}}) \cdot \mathbf{v}_{k-1} \cdot \Delta t + \frac{1}{2} \mathbf{C}(\mathbf{q_{k-1}}) \cdot \mathbf{a}_{k-1} \cdot \Delta t ^2 \\
-\mathbf{v}_{k-1} + \mathbf{a}_{k-1} * \Delta t \\
-\left( \mathbf{I}_{4\times4} + \frac{1}{2} \boldsymbol{\Omega}(\boldsymbol{\omega}_{k-1}) \Delta t \right) \mathbf{q}_{k-1}
+\mathbf{v}_{k-1} + \mathbf{a}_{k-1} \cdot \Delta t \\
+\begin{bmatrix}
+1 \\ \frac{1}{2} \boldsymbol{\omega}_{k-1} \Delta t + \frac{1}{4} \dot{\boldsymbol{\omega}}_{k-1} \cdot \Delta t ^2
+\end{bmatrix} \otimes \mathbf{q}_{k-1} \\
+\boldsymbol{\omega}_{k-1} + \dot{\boldsymbol{\omega}}_{k-1} \cdot \Delta t \\
+c_{T,k-1} \\
+c_{M,k-1} \\
+\mathbf{j}_{k-1}
 \end{bmatrix}
 \end{align}
+, where
+\begin{align}
+\mathbf{T}_{i,k-1} &= c_T \left( \frac{n_{i,k-1} + n_{i,k}}{2} \right) ^2 \mathbf{e}_z, \\
+\mathbf{a}_{k-1} &= \frac{1}{m} \sum_{i=1}^k \mathbf{T}_{i,k-1}  - \mathbf{C}^T(\mathbf{q}_{k-1}) \cdot \mathbf{g} - \boldsymbol{\omega}_{k-1} \times \mathbf{v}_{k-1},  \\
+\dot{\boldsymbol{\omega}}_{k-1} &= \mathbf{J}^{-1} \left( c_m \sum_{i=1}^k \left( \mathbf{T}_{i,k-1} + \mathbf{T}_{i,k-1} \times \mathbf{r} \right) - \boldsymbol{\omega}_{k-1} \times \mathbf{J} \boldsymbol{\omega}_{k-1} \right).
+\end{align}
+
+\subsection*{Error dynamics}
+Deriving the state and noise transition matrix $\mathbf{F}_k$ and $\mathbf{Q}_k$ for the propagation step \ref{eq:EKF:propagate:covariance} requires linearizing the system about the current maximum likelihood estimate.
 \printbibliography
 \end{document}
