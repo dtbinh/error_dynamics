@@ -128,6 +128,15 @@ c_{M,k-1} \\
 \end{align}
 
 \subsection*{Error dynamics}
-Deriving the state and noise transition matrix $\mathbf{F}_k$ and $\mathbf{Q}_k$ for the propagation step \ref{eq:EKF:propagate:covariance} requires linearizing the system about the current maximum likelihood estimate.
+Deriving the state and noise transition matrix $\mathbf{F}_k$ and $\mathbf{Q}_k$ for the propagation step \ref{eq:EKF:propagate:covariance} requires linearizing the system about the current maximum likelihood estimate. This will give us the linear continuous time system
+\begin{align}
+\dot{\tilde{\mathbf{x}}} &= \mathbf{F}_c \tilde{\mathbf{x}} + \mathbf{G}_c \mathbf{n}
+\end{align}
+, where $\tilde{\mathbf{x}} = \mathbf{x} - \hat{\mathbf{x}}$ is the error state. 
+
+As we are using quaternions to describe the attitude, we can not just build the difference between the true attitude and maximum likelihood estimate attitude. This would not conserve unit length and would lead to numerical issues. So instead it is common to use an error angle vector $\delta\boldsymbol{\Theta}$ to express changes in attitude. We follow the derivations by Weiss \cite{weiss2012vision} and Achtelik \cite{Achtelik2014} whos work is based on Trawny and Roumeliotis \cite{Trawny2005}. 
+\begin{align}
+\delta\boldsymbol{\Theta} &=   
+\end{align}
 \printbibliography
 \end{document}
