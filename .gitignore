@@ -22,7 +22,8 @@ slprj/
 *.bbl
 *.bcf
 *.blg
-*.run.xml
+*.run.xml 
+*.dvi
 
 # Git
 *.gitignore~

@@ -7,6 +7,7 @@
 \usepackage{lmodern}
 \usepackage[backend=biber,style=ieee]{biblatex}
 \bibliography{library.bib}
+\usepackage{siunitx}
 \title{Extended Kalman Filter Derivations}
 \author{Rik Bähnemann}
 \begin{document}
@@ -16,7 +17,40 @@ Out of our simulated experiment trajectories we want to pick the trajectory whic
 
 In order to make a prediction about the uncertainty in parameter estimation we will perform an extended Kalman filter (EKF) estimation along the simulated trajectories. Due to its recursive fashion the EKF is well suited for computationally demanding estimations. Further it has been proven to converge with a hexacopter's non-linear dynamics by Burri \cite{burri2015robust}.
 
-In the following we will state the MAV dynamics model and derive the EKF equations. We will close the section by showing how different trajectories influence the simulated parameter uncertainty.
+In the following we will first summarize the EKF routine. Then we will state how each single component is derived. This includes stating the MAV dynamics model and deriving the EKF propagation and update equations. We will close the section by showing how different trajectories influence the simulated parameter uncertainty.
+
+\section{Extended Kalman Filter}
+Propagating a belief from one node to another node in the tree is divided into three phases: initialize, propagate, update. The three steps are summarized in table \ref{tab:EKF}.
+
+At the starting node the Kalman filter is initialized with the MAV state (position, velocity, attitude, angular velocity, constant parameters) and its covariance matrix.
+
+This initial state is then propagated using the discretized nominal non-linear MAV dynamics $f_k(x_{k-1}, u_k, w_k=0)$. We use rotor speeds to drive the system. These rotor speeds are derived from the minimum-snap (jerk) trajectories which connect two nodes. Meanwhile the a priori estimate covariance is updated using the error dynamics $F_k$ which are linearized around the current maximum likelihood estimate $\hat{x}_{k|k-1}$. Propagation is run at \SI{100}{\hertz}.
+
+Measurement updates are performed at a rate of \SI{20}{\hertz}. We simulate position and attitude measurements which coincide with the propagated maximum likelihood estimates. Consequently this leads to zero innovations $\tilde{y}_k$ and only the covariance, not the state is updated. We do this because we want the parameter estimates to stay constant. The innovation covariance $S_k$, Kalman gain $K_k$ and updated a posteriori estimate covariance $P_{k|k}$ calculates according to the current a priori estimate and linearized measurement model equations.  
+
+\begin{table}
+\centering
+\begin{tabular}{lc}
+Phase & Equations \\
+\hline   
+Initialization & \parbox{7cm}{\begin{subequations} \begin{align} 
+\hat{x}_{0|0} &= x_0 \\
+P_{0|0} &= P_0
+\end{align} \end{subequations}} \\
+Propagate & \parbox{7cm}{\begin{subequations}\begin{align}
+\hat{x}_{k|k-1} &= f_k(\hat{x}_{k-1}, u_k, 0) \label{eq:EKF:propagate:state}\\
+P_{k|k-1} &= F_k P_{k-1} F^T_k + Q_k
+\end{align}\end{subequations}}  \\
+Update & \parbox{7cm}{\begin{subequations}\begin{align}
+\tilde{y}_k &= z_k - H_k \hat{x}_{k|k-1} = 0 \\
+S_k &= H_k P_{k|k-1} H^T_k + R_k \\
+K_k &= P_{k|k-1} H^T_k S_k^{-1} \\
+\hat{x}_{k|k} &= \hat{x}_{k|k-1} + K_k \tilde{y}_k = \hat{x}_{k|k-1} \\
+P_{k|k} &= (I - K_k H_k) P_{k|k-1}
+\end{align}\end{subequations}}
+\end{tabular}
+\caption{Extended Kalman filter predict and update equations. \label{tab:EKF}}
+\end{table}
 
 \section{MAV Dynamics Model}
 The dominant forces and moments acting on a MAV origin from the aerodynamics forces and moments acting on each rotor and the gravitational force. Summing up these, we formulate the translational and rotational dynamics using Newton's respectively Euler's equations. We do not model motor dynamics, as they are much faster than the remaining and thus can be considered instantaneous.
@@ -45,9 +79,9 @@ Due to our assumptions we only consider thrust acting on each rotor blade.
 \begin{align}
 \mathbf{T}_{i} = c_T n_i^2 \mathbf{e}_z + \mathbf{w}_{T,i}
 \end{align}   
-The constant $c_T$ describes our thrust constant. $n_i$ is the angular velocity of the $i$-th rotor blade. $\mathbf{e}_z$ is a unit vector in z-direction in base coordinates. $\mathbf{w}_{T,i}$ is zero mean gaussian noise with covariance $\boldsymbol{\sigma}_T^2 = \sigma_T^2 \mathbf{I}_{3\times3}$. It is accounting for the unstructured modelling error in blade dynamics.
+The constant $c_T$ describes our thrust constant. $n_i$ is the angular velocity of the $i$-th rotor blade. $\mathbf{e}_z$ is a unit vector in z-direction in base coordinates. $\mathbf{w}_{T,i}$ is zero mean Gaussian noise with covariance $\boldsymbol{\sigma}_T^2 = \sigma_T^2 \mathbf{I}_{3\times3}$. It is accounting for the unstructured modeling errors in blade dynamics.
 
-Our state vector consists of the vehicles position in inertial frame $\mathbf{p}$, its velocity in base coordinates $\mathbf{v}$, its rotation quaternion between base and inertial frame $\mathbf{q}$ and its angular velocity in base frame $\boldsymbol{\omega}$. Further the state is augmented by the the parameters for which we wish to estimate the estimation uncertainty. These are the thrust constant $c_T$, the moment constant $c_M$ and the three moments of inertia $\mathbf{j}$ which form the moments of inertia matrix $\mathbf{J} = diag(\mathbf{j})$.
+Our state vector consists of the vehicles position in inertial frame $\mathbf{p}$, its velocity in base coordinates $\mathbf{v}$, its rotation quaternion between base and inertial frame $\mathbf{q}$ and its angular velocity in base frame $\boldsymbol{\omega}$. Further the state is augmented by the the parameters for which we wish to estimate the estimation uncertainty. These are the thrust constant $c_T$, the moment constant $c_M$ and the three moments of inertia $\mathbf{j}$ which form the moments of inertia matrix $\mathbf{J} = diag(\mathbf{j})$. Thus the state vector contains $18$ states.
 \begin{align}
 \mathbf{x} = \begin{bmatrix}
 \mathbf{p}^T & \mathbf{v}^T & \mathbf{q}^T & \boldsymbol{\omega} & c_T & c_M & \mathbf{j}^T
@@ -56,6 +90,7 @@ Our state vector consists of the vehicles position in inertial frame $\mathbf{p}
 
 Using Newton's and Euler's equations, kinematic relations and the rotation matrix $\mathbf{C}(\mathbf{q})$ from base to inertial frame, we derive the non-linear state differential equations.
 \begin{subequations}
+\label{eq:model}
 \begin{align}
 \dot{\mathbf{p}} &= \mathbf{C}(\mathbf{q}) \cdot \mathbf{v} \\
 \dot{\mathbf{v}} &= \frac{1}{m} \sum_{i=1}^k \mathbf{T}_i - \mathbf{C}^T(\mathbf{q}) \cdot \mathbf{g} - \boldsymbol{\omega} \times \mathbf{v} + \mathbf{n}_T \\
@@ -69,5 +104,14 @@ Using Newton's and Euler's equations, kinematic relations and the rotation matri
 
 $\boldsymbol{\Omega}(\boldsymbol{\omega})$ is the quaternion matrix representation of $\boldsymbol{\omega}$ with zero scalar component. $\mathbf{n}_T$ and $\mathbf{n}_M$ are zero mean Gaussian process noise with variance $\boldsymbol{\sigma}_T^2 = \sigma_T^2 \mathbf{I}_{3\times3}$ and $\boldsymbol{\sigma}_M^2 = \sigma_M^2 \mathbf{I}_{3\times3}$ accounting for modelling error in linear acceleration or angular acceleration respectively.
 
+\subsection*{Discretization}
+The EKF propagation equations \ref{eq:EKF:propagate:state} require the continuous time system equations \ref{eq:model} in discretized form. We attain the discretized non-linear nominal system's equations using zero order hold discretization and setting the process noise to zero.
+\begin{align}
+f_k(\mathbf{x}_{k-1},\mathbf{u}_k, \mathbf{0}) &= \begin{bmatrix}
+\mathbf{p}_{k-1} + \mathbf{C}(\mathbf{q_{k-1}}) \cdot \mathbf{v}_{k-1} \cdot \Delta t + \frac{1}{2} \mathbf{C}(\mathbf{q_{k-1}}) \cdot \mathbf{a}_{k-1} \cdot \Delta t ^2 \\
+\mathbf{v}_{k-1} + \mathbf{a}_{k-1} * \Delta t \\
+\left( \mathbf{I}_{4\times4} + \frac{1}{2} \boldsymbol{\Omega}(\boldsymbol{\omega}_{k-1}) \Delta t \right) \mathbf{q}_{k-1}
+\end{bmatrix}
+\end{align}
 \printbibliography
 \end{document}
