@@ -8,6 +8,16 @@
 \usepackage[backend=biber,style=ieee]{biblatex}
 \bibliography{library.bib}
 \usepackage{siunitx}
+
+\newcommand{\skewsym}[1]{\lfloor #1 _\times \rfloor}
+\newcommand{\pos}{\mathbf{p}}
+\newcommand{\vel}{\mathbf{v}}
+\newcommand{\att}{\mathbf{q}}
+\newcommand{\angvel}{\boldsymbol{\omega}}
+\newcommand{\kthr}{c_T}
+\newcommand{\kmom}{c_M}
+\newcommand{\Inertia}{\mathbf{J}}
+
 \title{Extended Kalman Filter Derivations}
 \author{Rik Bähnemann}
 \begin{document}
@@ -97,13 +107,13 @@ Using Newton's and Euler's equations, kinematic relations and the rotation matri
 \dot{\mathbf{q}} &= \frac{1}{2} \mathbf{q} \otimes \begin{bmatrix}
 0 \\ \boldsymbol{\omega}
 \end{bmatrix} \\
-\dot{\boldsymbol{\omega}} &= \mathbf{J}^{-1} \left( c_m \sum_{i=1}^k \left( \mathbf{T}_i + \mathbf{T}_i \times \mathbf{r} \right) - \boldsymbol{\omega} \times \mathbf{J} \boldsymbol{\omega} \right) + \mathbf{n}_M \\
+\dot{\boldsymbol{\omega}} &= \mathbf{J}^{-1} \left(  \sum_{i=1}^k \left(-\epsilon_i  c_m \mathbf{T}_i + \mathbf{T}_i \times \mathbf{r} \right) - \boldsymbol{\omega} \times \mathbf{J} \boldsymbol{\omega} \right) + \mathbf{n}_M \\
 \dot{c}_T &= 0 \\
 \dot{c}_M &= 0 \\
 \dot{\mathbf{j}} &= \mathbf{0}
 \end{align}
 \end{subequations}
-$\otimes$ denotes quaternion multiplication. $\mathbf{n}_T$ and $\mathbf{n}_M$ are zero mean Gaussian process noise with variance $\boldsymbol{\sigma}_T^2 = \sigma_T^2 \mathbf{I}_{3\times3}$ and $\boldsymbol{\sigma}_M^2 = \sigma_M^2 \mathbf{I}_{3\times3}$ accounting for modelling error in linear acceleration or angular acceleration respectively.
+$\otimes$ denotes quaternion multiplication. $\mathbf{n}_T$ and $\mathbf{n}_M$ are zero mean Gaussian process noise with variance $\boldsymbol{\sigma}_T^2 = \sigma_T^2 \mathbf{I}_{3\times3}$ and $\boldsymbol{\sigma}_M^2 = \sigma_M^2 \mathbf{I}_{3\times3}$ accounting for modelling error in linear acceleration or angular acceleration respectively. $\mathbf{g} = [0~0~g]^T$ is the gravity vector where $g$ is the earth gravity constant. $\epsilon_i = \pm 1$ is the turning direction of each rotor.
 
 \subsection*{Discretization}
 The EKF propagation equations \ref{eq:EKF:propagate:state} require the continuous time system equations \ref{eq:model} in discretized form. We attain the discretized non-linear nominal system's equations using zero order hold discretization and setting the process noise to zero.
@@ -124,19 +134,59 @@ c_{M,k-1} \\
 \begin{align}
 \mathbf{T}_{i,k-1} &= c_T \left( \frac{n_{i,k-1} + n_{i,k}}{2} \right) ^2 \mathbf{e}_z, \\
 \mathbf{a}_{k-1} &= \frac{1}{m} \sum_{i=1}^k \mathbf{T}_{i,k-1}  - \mathbf{C}^T(\mathbf{q}_{k-1}) \cdot \mathbf{g} - \boldsymbol{\omega}_{k-1} \times \mathbf{v}_{k-1},  \\
-\dot{\boldsymbol{\omega}}_{k-1} &= \mathbf{J}^{-1} \left( c_m \sum_{i=1}^k \left( \mathbf{T}_{i,k-1} + \mathbf{T}_{i,k-1} \times \mathbf{r} \right) - \boldsymbol{\omega}_{k-1} \times \mathbf{J} \boldsymbol{\omega}_{k-1} \right).
+\dot{\boldsymbol{\omega}}_{k-1} &= \mathbf{J}^{-1} \left(  \sum_{i=1}^k \left(-\epsilon_i  c_m \mathbf{T}_{i,k-1} + \mathbf{T}_{i,k-1} \times \mathbf{r} \right) - \boldsymbol{\omega}_{k-1} \times \mathbf{J} \boldsymbol{\omega}_{k-1} \right).
 \end{align}
 
 \subsection*{Error dynamics}
-Deriving the state and noise transition matrix $\mathbf{F}_k$ and $\mathbf{Q}_k$ for the propagation step \ref{eq:EKF:propagate:covariance} requires linearizing the system about the current maximum likelihood estimate. This will give us the linear continuous time system
+Deriving the state and noise transition matrix $\mathbf{F}_k$ and $\mathbf{Q}_k$ for the a priori covariance propagation step \ref{eq:EKF:propagate:covariance} requires linearizing the system about the current maximum likelihood estimate. This will give us the linear continuous time system
 \begin{align}
 \dot{\tilde{\mathbf{x}}} &= \mathbf{F}_c \tilde{\mathbf{x}} + \mathbf{G}_c \mathbf{n}
 \end{align}
 , where $\tilde{\mathbf{x}} = \mathbf{x} - \hat{\mathbf{x}}$ is the error state. 
 
-As we are using quaternions to describe the attitude, we can not just build the difference between the true attitude and maximum likelihood estimate attitude. This would not conserve unit length and would lead to numerical issues. So instead it is common to use an error angle vector $\delta\boldsymbol{\Theta}$ to express changes in attitude. We follow the derivations by Weiss \cite{weiss2012vision} and Achtelik \cite{Achtelik2014} whos work is based on Trawny and Roumeliotis \cite{Trawny2005}. 
+As we are using quaternions to describe the attitude, we can not just calculate the difference between the true attitude and estimated attitude. This would not conserve unit length and would lead to numerical issues due to its non-minimal representation. So instead it is common to use an error angle vector $\delta\boldsymbol{\Theta}$ to express changes in attitude. We follow the derivations by Weiss \cite{weiss2012vision} and Achtelik \cite{Achtelik2014} whos work is based on Trawny and Roumeliotis \cite{Trawny2005}. 
+The error angle vector is defined as
 \begin{align}
-\delta\boldsymbol{\Theta} &=   
+\delta\boldsymbol{\Theta} &= \hat{\mathbf{q}}^{-1} \otimes \mathbf{q} & \delta\mathbf{q} \approx \begin{bmatrix}
+1 & \frac{1}{2} \delta\boldsymbol{\Theta}^T
+\end{bmatrix}^T   .
 \end{align}
+From this definition we can derive the error rotation matrix. $\skewsym{\cdot}$ defines the skew symmetric matrix.
+\begin{align}
+\mathbf{C}(\mathbf{q}) &= \mathbf{C}(\hat{\mathbf{q}}) \cdot \Delta\mathbf{C} \approx  \mathbf{C}(\hat{\mathbf{q}}) \left( \mathbf{I}_{3\times3} + \skewsym{\delta\boldsymbol{\Theta}} \right) \label{eq:DeltaC}
+\end{align} 
+The error state vector now describes as
+\begin{align}
+\tilde{\mathbf{x}} &= \begin{bmatrix}
+\Delta\mathbf{p}^T & \Delta\mathbf{v}^T & \delta\boldsymbol{\Theta}^T & \Delta\boldsymbol{\omega} & \Delta c_T & \Delta c_M & \Delta\mathbf{j}^T
+\end{bmatrix} ^T 
+\end{align}
+and we can calculate the error state differential equations as the difference between the real differential equations \ref{eq:model} and its nominal estimates. Using the small angle approximations from equation \ref{eq:DeltaC}, neglecting higher order terms and linearizing around zero expected error and noise we attain the linearized dynamics.
+\begin{align}
+\mathbf{F}_c &=  \begin{bmatrix}
+\mathbf{0}_{3\times3} & \mathbf{C}(\hat{\mathbf{q}}) & -\mathbf{C}(\hat{\mathbf{q}}) \cdot \skewsym{\hat{\mathbf{v}}} & \mathbf{0}_{3\times3} & \mathbf{0}_{3\times1} & \mathbf{0}_{3\times1} & \mathbf{0}_{3\times3} \\
+\mathbf{0}_{3\times3} & -\skewsym{\hat{\boldsymbol{\omega}}} & - \skewsym{\mathbf{C}^T(\hat{\mathbf{q}}) \cdot \mathbf{g} } & \skewsym{\hat{\mathbf{v}}} & \mathbf{A} & \mathbf{0}_{3\times1} & \mathbf{0}_{3\times3} \\
+\mathbf{0}_{3\times3} & \mathbf{0}_{3\times3} & -\skewsym{\hat{\boldsymbol{\omega}}} & \mathbf{I}_{3\times3} & \mathbf{0}_{3\times1} & \mathbf{0}_{3\times1} & \mathbf{0}_{3\times3} \\
+\mathbf{0}_{3\times3} & \mathbf{0}_{3\times3} & \mathbf{0}_{3\times3} & \mathbf{B} & \mathbf{C} & \mathbf{D} & \mathbf{E} \\
+\mathbf{0}_{1\times3} & \mathbf{0}_{1\times3} & \mathbf{0}_{1\times3} & \mathbf{0}_{1\times3} & 0 & 0 & \mathbf{0}_{1\times3} \\
+\mathbf{0}_{1\times3} & \mathbf{0}_{1\times3} & \mathbf{0}_{1\times3} & \mathbf{0}_{1\times3} & 0 & 0 & \mathbf{0}_{1\times3} \\
+\mathbf{0}_{3\times3} & \mathbf{0}_{3\times3} & \mathbf{0}_{3\times3} & \mathbf{0}_{3\times3} & \mathbf{0}_{3\times1} & \mathbf{0}_{3\times1} & \mathbf{0}_{3\times3}
+\end{bmatrix} 
+\end{align}
+with
+\begin{align}
+\mathbf{A} &= \frac{1}{m} \sum_{i=1}^k n_i^2 \mathbf{e}_z ,\\
+\mathbf{B} &= \hat{\mathbf{J}}^{-1} \left( \skewsym{\hat{\Inertia} \cdot \hat{\angvel}} - \skewsym{\angvel} \cdot \hat{\Inertia} \right) ,\\
+\mathbf{C} &= \hat{\Inertia}^{-1} \left( \sum_{i=1}^k -\epsilon_i \hat{\kmom} n_i^2 \mathbf{e}_z + n_i^2 \mathbf{e}_z \times \mathbf{r} \right) ,\\
+\mathbf{D} &= \hat{\Inertia}^{-1} \left( \sum_{i=1}^k -\epsilon_i \hat{\kthr} n_i^2 \mathbf{e}_z  \right) ,\\
+\mathbf{E} &= - \hat{\Inertia}^{-1} \begin{bmatrix}
+0 & -\hat{\omega_2}\hat{\omega_3} & \hat{\omega_2}\hat{\omega_3} \\
+\hat{\omega_1}\hat{\omega_3} & 0 & -\hat{\omega_1}\hat{\omega_3} \\
+-\hat{\omega_1}\hat{\omega_2} & \hat{\omega_1}\hat{\omega_2} & 0
+\end{bmatrix} - \ldots ,\\
+&~ \mathrm{diag} \left( \hat{\Inertia}^{-2} \left( \sum_{i=1}^k \left( -\epsilon_i \hat{\kmom} \hat{\kthr} n_i^2 \mathbf{e}_z + \hat{\ kthr} n_i^2 \mathbf{e}_z \times \mathbf{r} \right) - \skewsym{\hat{\angvel}} \hat{\Inertia} \hat{\angvel} \right) \right). 
+\end{align}
+
+These matrices are sparse and can be generated quickly as they only consist of matrix multiplications.
 \printbibliography
 \end{document}
