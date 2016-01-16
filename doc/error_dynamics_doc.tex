@@ -15,8 +15,18 @@
 \newcommand{\att}{\mathbf{q}}
 \newcommand{\angvel}{\boldsymbol{\omega}}
 \newcommand{\kthr}{c_T}
+\newcommand{\kthrh}{\hat{c}_T}
 \newcommand{\kmom}{c_M}
+\newcommand{\kmomh}{\hat{c}_M}
 \newcommand{\Inertia}{\mathbf{J}}
+\newcommand{\zthree}{\mathbf{0}_{3\times3}}
+\newcommand{\zthreeone}{\mathbf{0}_{3\times1}}
+\newcommand{\zonethree}{\mathbf{0}_{1\times3}}
+\newcommand{\identity}{\mathbf{I}_{3\times3}}
+\newcommand{\sigmat}{\boldsymbol{\sigma}_T}
+\newcommand{\sigmaa}{\boldsymbol{\sigma}_A}
+\newcommand{\sigmam}{\boldsymbol{\sigma}_M}
+\renewcommand{\d}[1]{\ensuremath{\operatorname{d}\!{#1}}}
 
 \title{Extended Kalman Filter Derivations}
 \author{Rik Bähnemann}
@@ -94,7 +104,7 @@ The constant $c_T$ describes our thrust constant. $n_i$ is the angular velocity 
 Our state vector consists of the vehicles position in inertial frame $\mathbf{p}$, its velocity in base coordinates $\mathbf{v}$, its rotation quaternion between base and inertial frame $\mathbf{q}$ and its angular velocity in base frame $\boldsymbol{\omega}$. Further the state is augmented by the the parameters for which we wish to estimate the estimation uncertainty. These are the thrust constant $c_T$, the moment constant $c_M$ and the three moments of inertia $\mathbf{j}$ which form the moments of inertia matrix $\mathbf{J} = diag(\mathbf{j})$. Thus the state vector contains $18$ states.
 \begin{align}
 \mathbf{x} = \begin{bmatrix}
-\mathbf{p}^T & \mathbf{v}^T & \mathbf{q}^T & \boldsymbol{\omega} & c_T & c_M & \mathbf{j}^T
+\mathbf{p}^T & \mathbf{v}^T & \mathbf{q}^T & \boldsymbol{\omega}^T & c_T & c_M & \mathbf{j}^T
 \end{bmatrix} ^T
 \end{align}
 
@@ -103,17 +113,22 @@ Using Newton's and Euler's equations, kinematic relations and the rotation matri
 \label{eq:model}
 \begin{align}
 \dot{\mathbf{p}} &= \mathbf{C}(\mathbf{q}) \cdot \mathbf{v} \\
-\dot{\mathbf{v}} &= \frac{1}{m} \sum_{i=1}^k \mathbf{T}_i - \mathbf{C}^T(\mathbf{q}) \cdot \mathbf{g} - \boldsymbol{\omega} \times \mathbf{v} + \mathbf{n}_T \\
+\dot{\mathbf{v}} &= \frac{1}{m} \sum_{i=1}^k \mathbf{T}_i - \mathbf{C}^T(\mathbf{q}) \cdot \mathbf{g} - \boldsymbol{\omega} \times \mathbf{v} + \mathbf{w}_A \\
 \dot{\mathbf{q}} &= \frac{1}{2} \mathbf{q} \otimes \begin{bmatrix}
 0 \\ \boldsymbol{\omega}
 \end{bmatrix} \\
-\dot{\boldsymbol{\omega}} &= \mathbf{J}^{-1} \left(  \sum_{i=1}^k \left(-\epsilon_i  c_m \mathbf{T}_i + \mathbf{T}_i \times \mathbf{r} \right) - \boldsymbol{\omega} \times \mathbf{J} \boldsymbol{\omega} \right) + \mathbf{n}_M \\
+\dot{\boldsymbol{\omega}} &= \mathbf{J}^{-1} \left(  \sum_{i=1}^k \left(-\epsilon_i  c_m \mathbf{T}_i + \mathbf{T}_i \times \mathbf{r} \right) - \boldsymbol{\omega} \times \mathbf{J} \boldsymbol{\omega} \right) + \mathbf{w}_M \\
 \dot{c}_T &= 0 \\
 \dot{c}_M &= 0 \\
 \dot{\mathbf{j}} &= \mathbf{0}
 \end{align}
 \end{subequations}
-$\otimes$ denotes quaternion multiplication. $\mathbf{n}_T$ and $\mathbf{n}_M$ are zero mean Gaussian process noise with variance $\boldsymbol{\sigma}_T^2 = \sigma_T^2 \mathbf{I}_{3\times3}$ and $\boldsymbol{\sigma}_M^2 = \sigma_M^2 \mathbf{I}_{3\times3}$ accounting for modelling error in linear acceleration or angular acceleration respectively. $\mathbf{g} = [0~0~g]^T$ is the gravity vector where $g$ is the earth gravity constant. $\epsilon_i = \pm 1$ is the turning direction of each rotor.
+$\otimes$ denotes quaternion multiplication. $\mathbf{w}_A$ and $\mathbf{w}_M$ are zero mean Gaussian process noise with variance $\boldsymbol{\sigma}_A^2 = \sigma_A^2 \mathbf{I}_{3\times3}$ and $\boldsymbol{\sigma}_M^2 = \sigma_M^2 \mathbf{I}_{3\times3}$ accounting for modelling error in linear acceleration or angular acceleration respectively. $\mathbf{g} = [0~0~g]^T$ is the gravity vector where $g$ is the earth gravity constant. $\epsilon_i = \pm 1$ is the turning direction of each rotor. The process noise vector $\mathbf{w}$ contains $3 \cdot k + 6$ components.
+\begin{align}
+\mathbf{w} &= \begin{bmatrix}
+\mathbf{w}_{T,1}^T & \cdots & \mathbf{w}_{T,k}^T & \mathbf{w}_A^T & \mathbf{w}_M^T 
+\end{bmatrix}^T
+\end{align}
 
 \subsection*{Discretization}
 The EKF propagation equations \ref{eq:EKF:propagate:state} require the continuous time system equations \ref{eq:model} in discretized form. We attain the discretized non-linear nominal system's equations using zero order hold discretization and setting the process noise to zero.
@@ -140,7 +155,7 @@ c_{M,k-1} \\
 \subsection*{Error dynamics}
 Deriving the state and noise transition matrix $\mathbf{F}_k$ and $\mathbf{Q}_k$ for the a priori covariance propagation step \ref{eq:EKF:propagate:covariance} requires linearizing the system about the current maximum likelihood estimate. This will give us the linear continuous time system
 \begin{align}
-\dot{\tilde{\mathbf{x}}} &= \mathbf{F}_c \tilde{\mathbf{x}} + \mathbf{G}_c \mathbf{n}
+\dot{\tilde{\mathbf{x}}} &= \mathbf{F}_c \tilde{\mathbf{x}} + \mathbf{G}_c \mathbf{w}
 \end{align}
 , where $\tilde{\mathbf{x}} = \mathbf{x} - \hat{\mathbf{x}}$ is the error state. 
 
@@ -171,22 +186,66 @@ and we can calculate the error state differential equations as the difference be
 \mathbf{0}_{1\times3} & \mathbf{0}_{1\times3} & \mathbf{0}_{1\times3} & \mathbf{0}_{1\times3} & 0 & 0 & \mathbf{0}_{1\times3} \\
 \mathbf{0}_{1\times3} & \mathbf{0}_{1\times3} & \mathbf{0}_{1\times3} & \mathbf{0}_{1\times3} & 0 & 0 & \mathbf{0}_{1\times3} \\
 \mathbf{0}_{3\times3} & \mathbf{0}_{3\times3} & \mathbf{0}_{3\times3} & \mathbf{0}_{3\times3} & \mathbf{0}_{3\times1} & \mathbf{0}_{3\times1} & \mathbf{0}_{3\times3}
-\end{bmatrix} 
+\end{bmatrix} \\
+\mathbf{G}_c &= \begin{bmatrix}
+\mathbf{0}_{3\times3} & \cdots & \mathbf{0}_{3\times3} & \mathbf{0}_{3\times3} & \mathbf{0}_{3\times3} \\
+\frac{1}{m} \mathbf{I}_{3\times3} & \cdots & \frac{1}{m} \mathbf{I}_{3\times3} & \mathbf{I}_{3\times3} & \mathbf{0}_{3\times3} \\
+\mathbf{0}_{3\times3} & \cdots & \mathbf{0}_{3\times3} & \mathbf{0}_{3\times3} & \mathbf{0}_{3\times3} \\
+\mathbf{F}_1 & \cdots & \mathbf{F}_k & \mathbf{0}_{3\times3} & \mathbf{I}_{3\times3} \\
+\mathbf{0}_{1\times3} & \cdots & \mathbf{0}_{1\times3} & \mathbf{0}_{1\times3} & \mathbf{0}_{1\times3} \\
+\mathbf{0}_{1\times3} & \cdots & \mathbf{0}_{1\times3} & \mathbf{0}_{1\times3} & \mathbf{0}_{1\times3} \\
+\mathbf{0}_{3\times3} & \cdots & \mathbf{0}_{3\times3} & \mathbf{0}_{3\times3} & \mathbf{0}_{3\times3} 
+\end{bmatrix}
 \end{align}
 with
 \begin{align}
 \mathbf{A} &= \frac{1}{m} \sum_{i=1}^k n_i^2 \mathbf{e}_z ,\\
 \mathbf{B} &= \hat{\mathbf{J}}^{-1} \left( \skewsym{\hat{\Inertia} \cdot \hat{\angvel}} - \skewsym{\angvel} \cdot \hat{\Inertia} \right) ,\\
-\mathbf{C} &= \hat{\Inertia}^{-1} \left( \sum_{i=1}^k -\epsilon_i \hat{\kmom} n_i^2 \mathbf{e}_z + n_i^2 \mathbf{e}_z \times \mathbf{r} \right) ,\\
-\mathbf{D} &= \hat{\Inertia}^{-1} \left( \sum_{i=1}^k -\epsilon_i \hat{\kthr} n_i^2 \mathbf{e}_z  \right) ,\\
+\mathbf{C} &= \hat{\Inertia}^{-1} \left( \sum_{i=1}^k -\epsilon_i \kmomh n_i^2 \mathbf{e}_z + n_i^2 \mathbf{e}_z \times \mathbf{r}_i \right) ,\\
+\mathbf{D} &= \hat{\Inertia}^{-1} \left( \sum_{i=1}^k -\epsilon_i \kthrh n_i^2 \mathbf{e}_z  \right) ,\\
 \mathbf{E} &= - \hat{\Inertia}^{-1} \begin{bmatrix}
-0 & -\hat{\omega_2}\hat{\omega_3} & \hat{\omega_2}\hat{\omega_3} \\
-\hat{\omega_1}\hat{\omega_3} & 0 & -\hat{\omega_1}\hat{\omega_3} \\
--\hat{\omega_1}\hat{\omega_2} & \hat{\omega_1}\hat{\omega_2} & 0
-\end{bmatrix} - \ldots ,\\
-&~ \mathrm{diag} \left( \hat{\Inertia}^{-2} \left( \sum_{i=1}^k \left( -\epsilon_i \hat{\kmom} \hat{\kthr} n_i^2 \mathbf{e}_z + \hat{\ kthr} n_i^2 \mathbf{e}_z \times \mathbf{r} \right) - \skewsym{\hat{\angvel}} \hat{\Inertia} \hat{\angvel} \right) \right). 
+0 & -\hat{\omega}_2\hat{\omega}_3 & \hat{\omega}_2\hat{\omega}_3 \\
+\hat{\omega}_1\hat{\omega}_3 & 0 & -\hat{\omega}_1\hat{\omega}_3 \\
+-\hat{\omega}_1\hat{\omega}_2 & \hat{\omega}_1\hat{\omega}_2 & 0
+\end{bmatrix} - \ldots \\
+&~ \mathrm{diag} \left( \hat{\Inertia}^{-2} \left( \sum_{i=1}^k \left( -\epsilon_i \kmomh \kthrh n_i^2 \mathbf{e}_z + \kthrh n_i^2 \mathbf{e}_z \times \mathbf{r} \right) - \skewsym{\hat{\angvel}} \hat{\Inertia} \hat{\angvel} \right) \right), \\
+\mathbf{F}_i &= \hat{\Inertia}^{-1} \left( -\epsilon_i \kmomh \mathbf{I}_{3\times3} - \skewsym{{\mathbf{r}_i}} \right) 
+\end{align}
+These matrices can be generated quickly as they only consist of matrix multiplications.
+
+Discretization is done via zero order hold. Note that following Weiss' work one may also find an exact solution \cite{weiss2012vision}. 
+
+We define $\boldsymbol{\varepsilon}(k)$ as a white noise vector with unit normal distribution of appropriate size. Accordingly, $\mathbf{Q}_c$ is the noise covariance matrix and defined as $\mathbf{Q}_c = \mathrm{diag} ( {\boldsymbol{\sigma}_T^2}^T, \ldots , {\boldsymbol{\sigma}_T^2}^T, {\boldsymbol{\sigma}_A^2}^T, {\boldsymbol{\sigma}_M^2}^T  )$.
+\begin{align}
+\tilde{\mathbf{x}} (k+1) \approx (\mathbf{I} + \mathbf{F}_c \Delta t) \tilde{\mathbf{x}}(k) + \underbrace{\Delta t \mathbf{G}_c  \sqrt{\mathbf{Q}_c}}_{\sqrt{\mathbf{Q}_k}} \boldsymbol{\varepsilon}(k)
 \end{align}
 
-These matrices are sparse and can be generated quickly as they only consist of matrix multiplications.
+
+We get
+\begin{align}
+\mathbf{F}_k &= \mathbf{I} + \mathbf{F}_c \Delta t, \\
+\mathbf{Q}_k &= \mathbf{G}_c \mathbf{Q}_c \mathbf{G}_c^T \Delta t ^2.
+\end{align}
+The noise transition matrix explicitly expands to
+\begin{align}
+\mathbf{Q}_k &= \begin{bmatrix}
+\zthree & \zthree & \zthree & \zthree & \zthreeone & \zthreeone & \zthree \\
+\zthree & \frac{k}{m^2} \sigmat^2 + \sigmaa^2 & \zthree & \frac{1}{m} \sigmat^2 \sum_{i=1}^k \mathbf{F}_i^T & \zthreeone & \zthreeone & \zthree \\
+\zthree & \zthree & \zthree & \zthree & \zthreeone & \zthreeone & \zthree \\
+\zthree & \frac{1}{m} \sigmat^2 \sum_{i=1}^k \mathbf{F}_i & \zthree & \sigmam^2 + \sum_{i=1}^k \mathbf{F}_i \sigmat^2 \mathbf{F}_i^T & \zthreeone & \zthreeone & \zthree \\
+\zthree & \zthree & \zthree & \zthree & \zthreeone & \zthreeone & \zthree \\
+\zthree & \zthree & \zthree & \zthree & \zthreeone & \zthreeone & \zthree \\
+\zthree & \zthree & \zthree & \zthree & \zthreeone & \zthreeone & \zthree 
+\end{bmatrix} \Delta t^2 \\
+\mathbf{F}_i \sigmat^2 \mathbf{F}_i^T &= \hat{\Inertia}^{-2} \sigmat^2 \left( \kmomh^2 \mathbf{I} - \skewsym{{\mathbf{r}_i}}^2 \right) 
+\end{align}
+
+%\begin{align}
+%\mathbf{F}_k &= \exp{(\mathbf{F}_c \Delta t)} = \mathbf{I} + \mathbf{F}_c \Delta t + \frac{1}{2!}\mathbf{F}_c^2 \Delta t^2 + \ldots \approx \mathbf{I} + \mathbf{F}_c \Delta t 
+%\end{align}  
+%The noise transition matrix $\mathbf{G}_c$ is discretized using Maybeck \cite{Maybeck79}.
+%\begin{align}
+%\mathbf{Q}_k &= \int_{\Delta t} F_k(\tau) G_c Q_c G_c^T F_k^T(\tau) \d{\tau} \approx F_k G_c Q_c G_c^T F_k^T \Delta t
+%\end{align}
 \printbibliography
 \end{document}
