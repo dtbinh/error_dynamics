@@ -270,17 +270,14 @@ where
 \end{align}
 
 \section{Discussion}
-We derived all components necessary to drive the Kalman filter \ref{eq:EKF:initialize} -- \ref{eq:EKF:update}. We are particularly interested in how the covariance evolves, as this gives us a measure of how the parameter uncertainty evolves over the course of the trajectory. 
 
-During the propagation step \ref{eq:EKF:propagate:covariance} the covariance grows through the system matrix $\mathbf{F}_k$ and noise input matrix $\mathbf{Q}_k$ from equations \ref{eq:system_discrete} and \ref{eq:system_noise_discrete}. From the structure we can draw conclusions on how the covariance evolves.
+\subsection*{Covariance}
+We derived all components necessary to drive the Kalman filter equations \ref{eq:EKF:initialize} -- \ref{eq:EKF:update}. We are particularly interested in how the covariance evolves, as this gives us a measure of how the parameter estimate uncertainty changes over the course of the trajectory. 
 
-The process noise \ref{eq:system_noise_discrete_explicit} only grows the uncertainty in velocity and angular velocity. The other states and parameters are not affected by process noise. 
+During the propagation step \ref{eq:EKF:propagate:covariance} the covariance grows through the system matrix $\mathbf{F}_k$ and noise input matrix $\mathbf{Q}_k$ from equations \ref{eq:system_discrete} and \ref{eq:system_noise_discrete}. As one can see from equation \ref{eq:system_noise_discrete_explicit}, the process noise matrix only grows the uncertainty in velocity and angular velocity. The other states and parameters are not affected by process noise. However, the system matrix \ref{eq:system_discrete} leads to some coupling which also affect covariance growth in position and attitude as well as parameter uncertainty. The parameter uncertainty grows in the correlated terms due to the coupling terms $\mathbf{A}$, $\mathbf{C}$, $\mathbf{D}$, $\mathbf{E}$ from equations \ref{eq:A}, \ref{eq:C}, \ref{eq:D}, \ref{eq:E}. The magnitude which the covariance grows with is depending on the magnitude of $\mathbf{F}_k$ which is depending on the current linearization point which itself is depending on the trajectory. This correlation finally leads to the parameter estimate covariance shrinking during measurement updates.
 
-The system matrix \ref{eq:system_discrete}, however, leads to some coupling which also affect covariance growth in position and attitude as well as parameter uncertainty. The parameter uncertainty grows in the correlated terms due to the coupling terms \mathbf{A}, \mathbf{C}, \mathbf{D}, \mathbf{E} from equations \ref{eq:A}, \ref{eq:C}, \ref{eq:D}, \ref{eq:E}. 
-
-The magnitude in which the covariance grows is depending on the magnitude of $\mathbf{F}_k$ which is depending on the current linearization point which itself is depending on the trajectory. 
-
-During measurements updates the covariance of the parameter estimates can shrink. The innovation covariance $\mathbf{S}_k$ from equation \ref{eq:EKF:update:innovation_covariance} is depending on the uncertainty of the states and its cross-correlations. Larger uncertainty leads to larger innovation which shrinks Kalman gain $\mathbf{K}_k$.  
+\subsection*{Measurement generation}
+As we only care about the propagation of the covariance we may consider leaving out propagating the state and updating it. We could assume that the MAV stays close to the given trajectory and generate the linearization point from the polynomial only. Then we would only update the a priori and a posteriori covariance. We would neglect the discrete state propagation and state estimate update.
 
 %\begin{align}
 %\mathbf{F}_k &= \exp{(\mathbf{F}_c \Delta t)} = \mathbf{I} + \mathbf{F}_c \Delta t + \frac{1}{2!}\mathbf{F}_c^2 \Delta t^2 + \ldots \approx \mathbf{I} + \mathbf{F}_c \Delta t 

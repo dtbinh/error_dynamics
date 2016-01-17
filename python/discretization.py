@@ -145,9 +145,34 @@ class Discretizer:
 
         Q_k = block_collapse(G_c * Q_c * G_c.T)
         Delta_t_2 = symbols('Delta_t_2')
-        Q_k = block_collapse(Q_k * Delta_t_2 )
+        Q_k = block_collapse(Q_k * Delta_t_2)
         print(simplify(Q_k))
 
+        # Discussion
+        P_p = MatrixSymbol('P_p', 3, 3)
+        P_v = MatrixSymbol('P_v', 3, 3)
+        P_q = MatrixSymbol('P_q', 3, 3)
+        P_a = MatrixSymbol('P_a', 3, 3)
+        P_t = MatrixSymbol('P_t', 1, 1)
+        P_m = MatrixSymbol('P_m', 1, 1)
+        P_j = MatrixSymbol('P_j', 3, 3)
+        P0 = BlockDiagMatrix(P_p, P_v, P_q, P_a, P_t, P_m, P_j)
+
+        F_kd = block_collapse(F_k - F_c*Delta_t + F_c)
+        Q_kd = block_collapse(G_c * Q_c * G_c.T)
+
+        P1 = block_collapse(F_kd * P0 * F_kd.T + Q_kd)
+        #print(P1)
+        P2 = block_collapse(F_kd * P1 * F_kd.T + Q_kd)
+        print(P2)
+        H = BlockMatrix([[I33, Z33, Z33, Z33, Z31, Z31, Z33],
+                         [Z33, Z33, I33, Z33, Z31, Z31, Z33]])
+        S2 = block_collapse(H * P2 * H.T + Identity(6))
+        #print(S2)
+        K2 = block_collapse(P2 * H.T * S2.I)
+        #print(K2)
+        P2_upd = block_collapse((Identity(17) - K2*H)*P2)
+        print(P2_upd)
 
 
 Discretizer().discretizeF()
