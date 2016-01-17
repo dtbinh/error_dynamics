@@ -53,20 +53,20 @@ Measurement updates are performed at a rate of \SI{20}{\hertz}. We simulate posi
 \begin{tabular}{lc}
 Phase & Equations \\
 \hline   
-Initialization & \parbox{7cm}{\begin{subequations} \begin{align} 
+Initialization & \parbox{7cm}{\begin{subequations} \label{eq:EKF:initialize} \begin{align} 
 \hat{x}_{0|0} &= x_0 \\
 P_{0|0} &= P_0
 \end{align} \end{subequations}} \\
-Propagate & \parbox{7cm}{\begin{subequations}\begin{align}
+Propagate & \parbox{7cm}{\begin{subequations} \label{eq:EKF:propagate} \begin{align}
 \hat{x}_{k|k-1} &= f_k(\hat{x}_{k-1}, u_k, 0) \label{eq:EKF:propagate:state}\\
 P_{k|k-1} &= F_k P_{k-1} F^T_k + Q_k \label{eq:EKF:propagate:covariance}
 \end{align}\end{subequations}}  \\
-Update & \parbox{7cm}{\begin{subequations}\begin{align}
+Update & \parbox{7cm}{\begin{subequations} \label{eq:EKF:update} \begin{align}
 \tilde{y}_k &= z_k - H_k \hat{x}_{k|k-1} = 0 \\
-S_k &= H_k P_{k|k-1} H^T_k + R_k \\
-K_k &= P_{k|k-1} H^T_k S_k^{-1} \\
-\hat{x}_{k|k} &= \hat{x}_{k|k-1} + K_k \tilde{y}_k = \hat{x}_{k|k-1} \\
-P_{k|k} &= (I - K_k H_k) P_{k|k-1}
+S_k &= H_k P_{k|k-1} H^T_k + R_k \label{eq:EKF:update:innovation_covariance}\\
+K_k &= P_{k|k-1} H^T_k S_k^{-1} \label{eq:EKF:update:kalman_gain}\\
+\hat{x}_{k|k} &= \hat{x}_{k|k-1} + K_k \tilde{y}_k = \hat{x}_{k|k-1} \label{eq:EKF:update:posteriori_estimate}\\
+P_{k|k} &= (I - K_k H_k) P_{k|k-1}\label{eq:EKF:update:posteriori_cov_estimate}
 \end{align}\end{subequations}}
 \end{tabular}
 \caption{Extended Kalman filter predict and update equations. \label{tab:EKF}}
@@ -199,16 +199,16 @@ and we can calculate the error state differential equations as the difference be
 \end{align}
 with
 \begin{align}
-\mathbf{A} &= \frac{1}{m} \sum_{i=1}^k n_i^2 \mathbf{e}_z ,\\
-\mathbf{B} &= \hat{\mathbf{J}}^{-1} \left( \skewsym{\hat{\Inertia} \cdot \hat{\angvel}} - \skewsym{\angvel} \cdot \hat{\Inertia} \right) ,\\
-\mathbf{C} &= \hat{\Inertia}^{-1} \left( \sum_{i=1}^k -\epsilon_i \kmomh n_i^2 \mathbf{e}_z + n_i^2 \mathbf{e}_z \times \mathbf{r}_i \right) ,\\
-\mathbf{D} &= \hat{\Inertia}^{-1} \left( \sum_{i=1}^k -\epsilon_i \kthrh n_i^2 \mathbf{e}_z  \right) ,\\
+\mathbf{A} &= \frac{1}{m} \sum_{i=1}^k n_i^2 \mathbf{e}_z , \label{eq:A}\\
+\mathbf{B} &= \hat{\mathbf{J}}^{-1} \left( \skewsym{\hat{\Inertia} \cdot \hat{\angvel}} - \skewsym{\angvel} \cdot \hat{\Inertia} \right) ,\label{eq:B}\\
+\mathbf{C} &= \hat{\Inertia}^{-1} \left( \sum_{i=1}^k -\epsilon_i \kmomh n_i^2 \mathbf{e}_z + n_i^2 \mathbf{e}_z \times \mathbf{r}_i \right) ,\label{eq:C}\\
+\mathbf{D} &= \hat{\Inertia}^{-1} \left( \sum_{i=1}^k -\epsilon_i \kthrh n_i^2 \mathbf{e}_z  \right) ,\label{eq:D}\\
 \mathbf{E} &= - \hat{\Inertia}^{-1} \begin{bmatrix}
 0 & -\hat{\omega}_2\hat{\omega}_3 & \hat{\omega}_2\hat{\omega}_3 \\
 \hat{\omega}_1\hat{\omega}_3 & 0 & -\hat{\omega}_1\hat{\omega}_3 \\
 -\hat{\omega}_1\hat{\omega}_2 & \hat{\omega}_1\hat{\omega}_2 & 0
 \end{bmatrix} - \ldots \\
-&~ \mathrm{diag} \left( \hat{\Inertia}^{-2} \left( \sum_{i=1}^k \left( -\epsilon_i \kmomh \kthrh n_i^2 \mathbf{e}_z + \kthrh n_i^2 \mathbf{e}_z \times \mathbf{r} \right) - \skewsym{\hat{\angvel}} \hat{\Inertia} \hat{\angvel} \right) \right), \\
+&~ \mathrm{diag} \left( \hat{\Inertia}^{-2} \left( \sum_{i=1}^k \left( -\epsilon_i \kmomh \kthrh n_i^2 \mathbf{e}_z + \kthrh n_i^2 \mathbf{e}_z \times \mathbf{r} \right) - \skewsym{\hat{\angvel}} \hat{\Inertia} \hat{\angvel} \right) \right), \label{eq:E}\\
 \mathbf{F}_i &= \hat{\Inertia}^{-1} \left( -\epsilon_i \kmomh \mathbf{I}_{3\times3} - \skewsym{{\mathbf{r}_i}} \right) 
 \end{align}
 These matrices can be generated quickly as they only consist of matrix multiplications.
@@ -223,8 +223,8 @@ We define $\boldsymbol{\varepsilon}(k)$ as a white noise vector with unit normal
 
 We get
 \begin{align}
-\mathbf{F}_k &= \mathbf{I} + \mathbf{F}_c \Delta t, \\
-\mathbf{Q}_k &= \mathbf{G}_c \mathbf{Q}_c \mathbf{G}_c^T \Delta t ^2.
+\mathbf{F}_k &= \mathbf{I} + \mathbf{F}_c \Delta t, \label{eq:system_discrete}\\
+\mathbf{Q}_k &= \mathbf{G}_c \mathbf{Q}_c \mathbf{G}_c^T \Delta t ^2 \label{eq:system_noise_discrete}.
 \end{align}
 The noise transition matrix explicitly expands to
 \begin{align}
@@ -236,9 +236,51 @@ The noise transition matrix explicitly expands to
 \zthree & \zthree & \zthree & \zthree & \zthreeone & \zthreeone & \zthree \\
 \zthree & \zthree & \zthree & \zthree & \zthreeone & \zthreeone & \zthree \\
 \zthree & \zthree & \zthree & \zthree & \zthreeone & \zthreeone & \zthree 
-\end{bmatrix} \Delta t^2 \\
+\end{bmatrix} \Delta t^2  \label{eq:system_noise_discrete_explicit}\\
 \mathbf{F}_i \sigmat^2 \mathbf{F}_i^T &= \hat{\Inertia}^{-2} \sigmat^2 \left( \kmomh^2 \mathbf{I} - \skewsym{{\mathbf{r}_i}}^2 \right) 
 \end{align}
+
+The derived transition matrix are sparse and the non-constant elements can be generated quickly at every propagation step as they only consist of matrix multiplication and addition. This allows the propagation step to run fast. We now need to derive the measurement update equations.
+
+\subsection*{Measurements}
+We assume to receive position and attitude measurements at \SI{20}{\hertz} from a Vicon motion capture system. 
+\begin{align}
+\mathbf{z}_p &= \mathbf{p} + \mathbf{v}_p, & \boldsymbol{v}_p \sim \mathbf{\mathcal{N}} \left( \mathbf{0}, \mathbf{R}_p \right),\\
+\mathbf{z}_q &= \mathbf{q} \otimes \mathbf{v}_q, \\
+\mathbf{v}_q &= \begin{bmatrix}
+1 \\ \frac{1}{2} \boldsymbol{\Phi} 
+\end{bmatrix} , & \boldsymbol{\Phi} \sim \mathbf{\mathcal{N}} \left( \mathbf{0}, \mathbf{R}_q \right), \\
+\mathbf{R}_p & = \sigma_p^2 \identity, & \mathbf{R}_q = \sigma_q^2 \identity.
+\end{align}
+
+Instead of measuring the position and attitude directly, we measure the error states instead.  Thus, the discrete time output equations evolve as
+\begin{align}
+\mathbf{z}(k) &= \begin{bmatrix}
+\mathbf{z}_p(k) \\ \mathbf{z}_q(k)
+\end{bmatrix} = \mathbf{H}_k \tilde{\mathbf{x}}(k) + \mathbf{v}(k) , &\mathbf{v}(k) \sim \mathcal{\mathbf{N}} \left( \mathbf{0}, \mathbf{R}_k \right), 
+\end{align}
+where
+\begin{align}
+\mathbf{R}_k &= \frac{1}{\Delta t} \mathbf{R}_c, \\
+\mathbf{R}_c &= \mathrm{diag} \left( \mathbf{R}_p, \mathbf{R}_q \right), \\
+\mathbf{H}_k &= \begin{bmatrix}
+\identity & \zthree & \zthree & \zthree & \zthreeone & \zthreeone & \zthree \\
+\zthree & \zthree & \identity & \zthree & \zthreeone & \zthreeone & \zthree
+\end{bmatrix}.
+\end{align}
+
+\section{Discussion}
+We derived all components necessary to drive the Kalman filter \ref{eq:EKF:initialize} -- \ref{eq:EKF:update}. We are particularly interested in how the covariance evolves, as this gives us a measure of how the parameter uncertainty evolves over the course of the trajectory. 
+
+During the propagation step \ref{eq:EKF:propagate:covariance} the covariance grows through the system matrix $\mathbf{F}_k$ and noise input matrix $\mathbf{Q}_k$ from equations \ref{eq:system_discrete} and \ref{eq:system_noise_discrete}. From the structure we can draw conclusions on how the covariance evolves.
+
+The process noise \ref{eq:system_noise_discrete_explicit} only grows the uncertainty in velocity and angular velocity. The other states and parameters are not affected by process noise. 
+
+The system matrix \ref{eq:system_discrete}, however, leads to some coupling which also affect covariance growth in position and attitude as well as parameter uncertainty. The parameter uncertainty grows in the correlated terms due to the coupling terms \mathbf{A}, \mathbf{C}, \mathbf{D}, \mathbf{E} from equations \ref{eq:A}, \ref{eq:C}, \ref{eq:D}, \ref{eq:E}. 
+
+The magnitude in which the covariance grows is depending on the magnitude of $\mathbf{F}_k$ which is depending on the current linearization point which itself is depending on the trajectory. 
+
+During measurements updates the covariance of the parameter estimates can shrink. The innovation covariance $\mathbf{S}_k$ from equation \ref{eq:EKF:update:innovation_covariance} is depending on the uncertainty of the states and its cross-correlations. Larger uncertainty leads to larger innovation which shrinks Kalman gain $\mathbf{K}_k$.  
 
 %\begin{align}
 %\mathbf{F}_k &= \exp{(\mathbf{F}_c \Delta t)} = \mathbf{I} + \mathbf{F}_c \Delta t + \frac{1}{2!}\mathbf{F}_c^2 \Delta t^2 + \ldots \approx \mathbf{I} + \mathbf{F}_c \Delta t 
