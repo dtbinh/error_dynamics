@@ -27,6 +27,7 @@
 \newcommand{\sigmaa}{\boldsymbol{\sigma}_A}
 \newcommand{\sigmam}{\boldsymbol{\sigma}_M}
 \renewcommand{\d}[1]{\ensuremath{\operatorname{d}\!{#1}}}
+\newcommand{\ddt}{\frac{d}{dt}}
 
 \title{Extended Kalman Filter Derivations}
 \author{Rik Bähnemann}
@@ -143,9 +144,9 @@ f_k(\mathbf{x}_{k-1},\mathbf{u}_k, \mathbf{0}) &= \begin{bmatrix}
 c_{T,k-1} \\
 c_{M,k-1} \\
 \mathbf{j}_{k-1}
-\end{bmatrix}
+\end{bmatrix},
 \end{align}
-, where
+where
 \begin{align}
 \mathbf{T}_{i,k-1} &= c_T \left( \frac{n_{i,k-1} + n_{i,k}}{2} \right) ^2 \mathbf{e}_z, \\
 \mathbf{a}_{k-1} &= \frac{1}{m} \sum_{i=1}^k \mathbf{T}_{i,k-1}  - \mathbf{C}^T(\mathbf{q}_{k-1}) \cdot \mathbf{g} - \boldsymbol{\omega}_{k-1} \times \mathbf{v}_{k-1},  \\
@@ -155,9 +156,9 @@ c_{M,k-1} \\
 \subsection*{Error dynamics}
 Deriving the state and noise transition matrix $\mathbf{F}_k$ and $\mathbf{Q}_k$ for the a priori covariance propagation step \ref{eq:EKF:propagate:covariance} requires linearizing the system about the current maximum likelihood estimate. This will give us the linear continuous time system
 \begin{align}
-\dot{\tilde{\mathbf{x}}} &= \mathbf{F}_c \tilde{\mathbf{x}} + \mathbf{G}_c \mathbf{w}
+\dot{\tilde{\mathbf{x}}} &= \mathbf{F}_c \tilde{\mathbf{x}} + \mathbf{G}_c \mathbf{w} ,
 \end{align}
-, where $\tilde{\mathbf{x}} = \mathbf{x} - \hat{\mathbf{x}}$ is the error state. 
+where $\tilde{\mathbf{x}} = \mathbf{x} - \hat{\mathbf{x}}$ is the error state vector. 
 
 As we are using quaternions to describe the attitude, we can not just calculate the difference between the true attitude and estimated attitude. This would not conserve unit length and would lead to numerical issues due to its non-minimal representation. So instead it is common to use an error angle vector $\delta\boldsymbol{\Theta}$ to express changes in attitude. We follow the derivations by Weiss \cite{weiss2012vision} and Achtelik \cite{Achtelik2014} whos work is based on Trawny and Roumeliotis \cite{Trawny2005}. 
 The error angle vector is defined as
@@ -267,6 +268,69 @@ where
 \identity & \zthree & \zthree & \zthree & \zthreeone & \zthreeone & \zthree \\
 \zthree & \zthree & \identity & \zthree & \zthreeone & \zthreeone & \zthree
 \end{bmatrix}.
+\end{align}
+
+\section{Linearization Points from Flat States}
+In the previous section we derived the system dynamics and measurement equations. The system matrix $\mathbf{F}_l$ is linearized about the state and rotor speeds at every time step. Approximately the rotor speeds, attitude and angular velocity can be derived from the flat states and its derivatives following Mellinger \cite{mellinger2011minimum}.
+
+\noindent From the trajectories we have the state in world coordinates.
+\begin{align}
+\mathbf{x}_f &= \begin{bmatrix}
+\mathbf{p}^T & \mathbf{v}^T & \mathbf{a}^T & \mathbf{j}^T & \mathbf{s}^T & \psi & \dot{\psi} & \ddot{\psi}
+\end{bmatrix}^T
+\end{align}
+The full attitude $\mathbf{q}$ is described as
+\begin{align}
+\mathbf{z}_B &= \frac{\mathbf{t}}{|\mathbf{t}|}, & \mathbf{t} = \mathbf{a} + \begin{bmatrix}
+0 & 0 & g
+\end{bmatrix}^T, \\
+\mathbf{y}_B &= \frac{\mathbf{z}_B \times \mathbf{x}_C}{||\mathbf{z}_B \times \mathbf{x}_C||}, & \mathbf{x}_C = \begin{bmatrix}
+\cos \psi & \sin \psi & 0
+\end{bmatrix}^T, \\
+\mathbf{x}_B &= \mathbf{y}_B \times \mathbf{z}_B, \\
+\mathbf{C}(\mathbf{q}) &= \begin{bmatrix}
+\mathbf{x}_B & \mathbf{y}_B & \mathbf{z}_B
+\end{bmatrix}, & ||\mathbf{z}_B \times \mathbf{x}_C|| \neq 0.
+\end{align}
+The angular velocity $\boldsymbol{\omega}$ is
+\begin{align}
+\mathbf{h}_\omega & = \frac{1}{|\mathbf{t}|} \left( \mathbf{j} - \left( \mathbf{z}_B^T \cdot \mathbf{j} \right) \mathbf{z}_B \right), \\
+\omega_1 &= - \mathbf{h}_\omega^T \cdot \mathbf{y}_B ,\\
+\omega_2 &= \mathbf{h}_\omega^T \cdot \mathbf{x}_B ,\\
+\omega_3 &= \dot \psi \cdot \mathbf{z}_W^T \cdot \mathbf{z}_B .
+\end{align}
+The angular acceleration $\boldsymbol{\alpha}$ is
+\begin{align}
+\mathbf{h}_\alpha &=  \left( \frac{1}{|\mathbf{t}|} \left( \mathbf{s} - \left( \mathbf{z}_B^T \cdot \mathbf{s} \right) \mathbf{z}_B \right) - 2  \left(\boldsymbol{\omega} \times \mathbf{z}_B \right) - \boldsymbol{\omega} \times \left( \boldsymbol{\omega} \times \mathbf{z}_B \right) + \mathbf{z}_B^T \left( \boldsymbol{\omega} \times \left( \boldsymbol{\omega} \times \mathbf{z}_B \right) \right) \mathbf{z}_B    \right), \\
+\alpha_1 &= -\mathbf{h}_\alpha^T \cdot \mathbf{y}_B, \\
+\alpha_2 &= \mathbf{h}_\alpha \cdot \mathbf{x}_B, \\
+\alpha_3 &= \ddot \psi \mathbf{z}_W^T \cdot \mathbf{z}_B.
+\end{align}
+Finally, a linear mapping $\mathbf{A}$ between thrust $T$ and torques $\boldsymbol{\tau}$ and rotor speeds $\mathbf{n}$ exists, which allows us calculating the rotor speeds.
+\begin{align}
+\begin{bmatrix}
+ \boldsymbol{\tau} \\ T 
+\end{bmatrix} &= \mathbf{K} \cdot \mathbf{A} \cdot \mathbf{n}^2, \\
+\boldsymbol{\tau} &= \mathbf{J} \boldsymbol{\alpha} + \boldsymbol{\omega} \times \mathbf{J} \boldsymbol{\omega}, \\
+T &= m |\mathbf{t}|.
+\end{align}
+For a hexacopter we get
+\begin{align}
+\mathbf{A} &= \begin{bmatrix}
+s & 1 & s & -s & -1 & -s \\
+-c & 0 & c & c & 0 & -c \\
+-1 & 1 & -1 & 1 & -1 & 1 \\
+1 & 1 & 1 & 1 & 1 & 1
+\end{bmatrix}, \\
+\mathbf{K} &= \mathrm{diag} \left( \begin{bmatrix}
+l \kthr  & l \kthr & \kthr \kmom & \kthr
+\end{bmatrix} \right),
+\end{align}
+where $s = \sin (\SI{30}{\degree})$, $c = \cos (\SI{30}{\degree})$ and $l$ is the rotor arm length. The squared rotor speeds, which are required for linearization, can now be obtained from known quantities.
+\begin{align}
+\mathbf{n}^2 &=  A^\dagger \cdot K^{-1} \cdot \begin{bmatrix}
+ \boldsymbol{\tau} \\ T 
+\end{bmatrix}
 \end{align}
 
 \section{Discussion}
