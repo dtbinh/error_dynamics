@@ -15,6 +15,9 @@
 # Simulink Code Generation
 slprj/
 
+# Matlab function generation
+compute*
+
 # Latex
 *.aux
 *.log

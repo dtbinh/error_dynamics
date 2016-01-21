@@ -3,14 +3,17 @@ clear all;
 close all;
 clc;
 
+% General
+syms dt real
+
 % Firefly
 syms kMass real
 kNumRotors = 6;
-arm_length = 0.2;
-kGravity = 9.80708;
-kRotorPlaneOffset = 0.05;
+syms kArmLength real;
+kGravity = 9.807;
+syms kRotorPlaneOffset real;
 direction = [1,-1,1,-1,1,-1]';
-motor_location = arm_length * ...
+motor_location = kArmLength * ...
     [cos(30/180*pi), cos(90/180*pi), cos(150/180*pi), cos(210/180*pi), cos(270/180*pi), cos(330/180*pi);
     sin(30/180*pi), sin(90/180*pi), sin(150/180*pi), sin(210/180*pi), sin(270/180*pi), sin(330/180*pi);
     kRotorPlaneOffset, kRotorPlaneOffset, kRotorPlaneOffset, kRotorPlaneOffset, kRotorPlaneOffset, kRotorPlaneOffset];
@@ -129,12 +132,17 @@ dkInertia_dot = zeros(3,1);
 dx_dot = [dp_dot; dv_dot; dth_dot; dw_dot; dkThrust_dot; dkMoment_dot; dkInertia_dot];
 dx_dot = simplify(dx_dot);
 
-% linearized error states
+% linearized error system matrix F_c
 F_c = jacobian(dx_dot, dx);
 % remove noise (zero mean) and higher order error terms
 F_c = subs(F_c, dx, zeros(size(dx)));
 F_c = subs(F_c, n_process_model, zeros(size(n_process_model)));
 F_c = simplify(F_c);
+% discrete version
+F_d = eye(size(F_c, 1)) + F_c * dt; % zero order hold
+F_d = simplify(F_d);
+disp('calculated Fd');
+
 
 % linearized noise matrix
 G_c = jacobian(dx_dot, n_process_model);
@@ -142,3 +150,44 @@ G_c = jacobian(dx_dot, n_process_model);
 G_c = subs(G_c, dx, zeros(size(dx)));
 G_c = subs(G_c, n_process_model, zeros(size(n_process_model)));
 G_c = simplify(G_c);
+% discrete version
+Q_d = dt * G_c * Q_c * G_c';
+Q_d = simplify(Q_d);
+disp('calculated Qd');
+
+% calculate update equations
+dz_p = dp + n_p_m;
+dz_th = dth + n_q_m;
+
+dz = [dz_p; dz_th];
+
+% linearized output matrix
+H = jacobian(dz, dx);
+% remove noise (zero mean) and higher order error terms
+H = subs(H, dx, zeros(size(dx)));
+H = subs(H, n_meas_model, zeros(size(n_meas_model)));
+H = simplify(H);
+% discrete version
+H_d = H;
+disp('calculated Hd');
+
+% measurement noise transition matrix
+V = jacobian(dz, n_meas_model);
+% remove noise (zero mean) and higher order error terms
+V = subs(V, dx, zeros(size(dx)));
+V = subs(V, n_meas_model, zeros(size(n_meas_model)));
+V = simplify(V);
+disp('calculated Vd');
+
+% measurement noise
+R_d = R_c;
+
+% Generate matlab functions.
+disp('generating code to compute Fd');
+matlabFunction(F_d, 'file', 'compute_F_d', 'vars', {x, n_u, kMass, kArmLength, kRotorPlaneOffset, dt});
+disp('generating code to compute Qd');
+matlabFunction(Q_d, 'file', 'compute_Q_d', 'vars', {x, n_u, kMass, kArmLength, kRotorPlaneOffset, sigma_process_model, dt});
+disp('generating code to compute Hd');
+matlabFunction(H_d, 'file', 'compute_H_d', 'vars', {x, n_u, kMass, kArmLength, kRotorPlaneOffset});
+disp('generating code to compute Rd');
+matlabFunction(R_d, 'file', 'compute_R_d', 'vars', {sigma_meas_model});
