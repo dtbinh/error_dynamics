@@ -209,7 +209,12 @@ with
 \hat{\omega}_1\hat{\omega}_3 & 0 & -\hat{\omega}_1\hat{\omega}_3 \\
 -\hat{\omega}_1\hat{\omega}_2 & \hat{\omega}_1\hat{\omega}_2 & 0
 \end{bmatrix} - \ldots \\
-&~ \mathrm{diag} \left( \hat{\Inertia}^{-2} \left( \sum_{i=1}^k \left( -\epsilon_i \kmomh \kthrh n_i^2 \mathbf{e}_z + \kthrh n_i^2 \mathbf{e}_z \times \mathbf{r} \right) - \skewsym{\hat{\angvel}} \hat{\Inertia} \hat{\angvel} \right) \right), \label{eq:E}\\
+&~ \mathrm{diag} \left( \hat{\Inertia}^{-2} \left( \sum_{i=1}^k \left( -\epsilon_i \kmomh \kthrh n_i^2 \mathbf{e}_z + \kthrh n_i^2 \mathbf{e}_z \times \mathbf{r}_i \right) - \skewsym{\hat{\angvel}} \hat{\Inertia} \hat{\angvel} \right) \right), \label{eq:E} \\
+&= -\hat{\Inertia}^{-1} \left( \begin{bmatrix}
+0 & -\hat{\omega}_2\hat{\omega}_3 & \hat{\omega}_2\hat{\omega}_3 \\
+\hat{\omega}_1\hat{\omega}_3 & 0 & -\hat{\omega}_1\hat{\omega}_3 \\
+-\hat{\omega}_1\hat{\omega}_2 & \hat{\omega}_1\hat{\omega}_2 & 0
+\end{bmatrix} + \mathrm{diag} \left( \kthrh \mathbf{C} - \hat{\Inertia}^{-1} \skewsym{\hat{\angvel}} \hat{\Inertia} \hat{\angvel} \right) \right) \\
 \mathbf{F}_i &= \hat{\Inertia}^{-1} \left( -\epsilon_i \kmomh \mathbf{I}_{3\times3} - \skewsym{{\mathbf{r}_i}} \right) 
 \end{align}
 These matrices can be generated quickly as they only consist of matrix multiplications.
@@ -234,10 +239,13 @@ The noise transition matrix explicitly expands to
 \zthree & \frac{k}{m^2} \sigmat^2 + \sigmaa^2 & \zthree & \frac{1}{m} \sigmat^2 \sum_{i=1}^k \mathbf{F}_i^T & \zthreeone & \zthreeone & \zthree \\
 \zthree & \zthree & \zthree & \zthree & \zthreeone & \zthreeone & \zthree \\
 \zthree & \frac{1}{m} \sigmat^2 \sum_{i=1}^k \mathbf{F}_i & \zthree & \sigmam^2 + \sum_{i=1}^k \mathbf{F}_i \sigmat^2 \mathbf{F}_i^T & \zthreeone & \zthreeone & \zthree \\
-\zthree & \zthree & \zthree & \zthree & \zthreeone & \zthreeone & \zthree \\
-\zthree & \zthree & \zthree & \zthree & \zthreeone & \zthreeone & \zthree \\
+\zonethree & \zonethree & \zonethree & \zonethree & 0 & 0 & \zonethree \\
+\zonethree & \zonethree & \zonethree & \zonethree & 0 & 0 & \zonethree \\
 \zthree & \zthree & \zthree & \zthree & \zthreeone & \zthreeone & \zthree 
-\end{bmatrix} \Delta t^2  \label{eq:system_noise_discrete_explicit}\\
+\end{bmatrix} \Delta t^2  \label{eq:system_noise_discrete_explicit} ,
+\end{align}
+where
+\begin{align}
 \mathbf{F}_i \sigmat^2 \mathbf{F}_i^T &= \hat{\Inertia}^{-2} \sigmat^2 \left( \kmomh^2 \mathbf{I} - \skewsym{{\mathbf{r}_i}}^2 \right) 
 \end{align}
 

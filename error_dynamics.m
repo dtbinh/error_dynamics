@@ -13,7 +13,7 @@ syms kArmLength real;
 kGravity = 9.807;
 syms kRotorPlaneOffset real;
 direction = [1,-1,1,-1,1,-1]';
-motor_location = kArmLength * ...
+motor_location = diag([kArmLength;kArmLength;1]) * ...
     [cos(30/180*pi), cos(90/180*pi), cos(150/180*pi), cos(210/180*pi), cos(270/180*pi), cos(330/180*pi);
     sin(30/180*pi), sin(90/180*pi), sin(150/180*pi), sin(210/180*pi), sin(270/180*pi), sin(330/180*pi);
     kRotorPlaneOffset, kRotorPlaneOffset, kRotorPlaneOffset, kRotorPlaneOffset, kRotorPlaneOffset, kRotorPlaneOffset];
