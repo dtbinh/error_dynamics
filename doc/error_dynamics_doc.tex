@@ -8,6 +8,8 @@
 \usepackage[backend=biber,style=ieee]{biblatex}
 \bibliography{library.bib}
 \usepackage{siunitx}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
 
 \newcommand{\skewsym}[1]{\lfloor #1 _\times \rfloor}
 \newcommand{\pos}{\mathbf{p}}
@@ -358,5 +360,70 @@ As we only care about the propagation of the covariance we may consider leaving 
 %\begin{align}
 %\mathbf{Q}_k &= \int_{\Delta t} F_k(\tau) G_c Q_c G_c^T F_k^T(\tau) \d{\tau} \approx F_k G_c Q_c G_c^T F_k^T \Delta t
 %\end{align}
+
+
+\section{Rapidly-exploring Information Gathering (RIG)}
+%\begin{lstlisting}[mathescape]
+%Input: 
+%$n.\Sigma := \Sigma_0$; $n.c := 0$; $n.\mathrm{parent}:=\mathrm{NULL}$;
+%$v.x := x_0$; $v.N := {n}$;
+%$V := \{v\}$; $E:= \{\}$; $V_{\mathrm{closed}} := \{\}$
+%\WHILE processing time remains do
+%$x_{\mathrm{new}}$
+%end while
+%\end{lstlisting}
+
+\begin{algorithm}
+\caption{Rapidly-exploring Information Gathering (RIG)}
+\begin{algorithmic}[1]
+\algrenewcommand{\algorithmicrequire}{\textbf{Input:}}
+\algrenewcommand{\algorithmicensure}{\textbf{Output:}}
+\Require Free space $\mathcal{X}_{\mathrm{free}} \subset SE(3) \cup SO(2)$, Sampling Space $\mathcal{X}_{\mathrm{sample}} \subseteq \mathcal{X}_{\mathrm{free}}$, Start state $x_0 \in \mathcal{X}_{\mathrm{free}}$, Goal state $x_T \in \mathcal{X}_{\mathrm{free}}$, Initial covariance $\Sigma_0$, Range $R$, Constraint state space  $\mathcal{X}_{\mathrm{constraint}} \subseteq \mathcal{X}_{\mathrm{state}}$, Parameter estimate $\hat\Theta$, Propagation time $\Delta t$, Budget $c_{\mathrm{max}}$
+\Ensure  Experiment Trajectory $\Psi$
+\State $n.\Sigma := \Sigma_0$; $n.c := 0$; $n.\mathrm{parent}:=\mathrm{NULL}$; $n.closed := \mathrm{false} $;
+\State $v.x := x_0$; $v.N := {n}$;
+\State $V := \{v\}$; $E:= \{\}$; $V_{\mathrm{empty}} := \{\}$
+\While { $t_{\mathrm{runtime}} < t_{\mathrm{terminate}}$ }
+\State $x_{\mathrm{new}} := $ \textproc{Sample}($\mathcal{X}_{\mathrm{sample}}$)
+\State $v_{\mathrm{nearest}} := $ \textproc{Nearest}($V \setminus V_{\mathrm{empty}}$, $x_{\mathrm{new}}$)
+\State $x_{\mathrm{new}} := $ \textproc{Interpolate}($x_{\mathrm{new}}$, $v_{\mathrm{nearest}}.x$, $R$)
+\State $t := $ \textproc{SampleSegmentTime}()
+\State $e_{\mathrm{nearest}}$, $x_{\mathrm{new}} := $ \textproc{Connect}($x_{\mathrm{new}}$, $v_{\mathrm{nearest}}.x$, $t$)
+\If { \textproc{Feasible}($e_{\mathrm{nearest}}$) }
+\State $V := V \cup v(x_{\mathrm{new}})$
+\State $e_{\mathrm{nearest}}.\Phi :=$ \textproc{ComputeOneStepPropagation}$(e_{\mathrm{nearest}})$
+\State $E := E \cup e_{\mathrm{nearest}}$
+\State $t := $ \textproc{SampleSegmentTime}()
+\State $e_{\mathrm{return}} := $ \textproc{Connect}($v_{\mathrm{nearest}}.x$, $x_{\mathrm{new}}$, $t$)
+\If { \textproc{Feasible}($e_{\mathrm{return}}$) }
+\State $e_{\mathrm{return}}.\Phi :=$ \textproc{ComputeOneStepPropagation}$(e_{\mathrm{return}})$
+\State $E := E \cup e_{\mathrm{return}}$
+\EndIf
+\State $Q := Q \cup v_{\mathrm{nearest}}.N$
+\ForAll { $v_{\mathrm{near}} \in V_{\mathrm{near}}$ }
+\State $t := $ \textproc{SampleSegmentTime}()
+\State $e_{\mathrm{near}} := $ \textproc{Connect}($v_{\mathrm{near}}.x$, $x_{\mathrm{new}}$, $t$)
+\If { \textproc{Feasible}($e_{\mathrm{near}}$) }
+\State $E := E \cup e_{\mathrm{near}}$
+\State $Q := Q \cup v_{\mathrm{near}}.N$
+\EndIf
+\State $t := $ \textproc{SampleSegmentTime}()
+\State $e_{\mathrm{return}} := $ \textproc{Connect}($x_{\mathrm{new}}$, $v_{\mathrm{near}}.x$, $t$)
+\If { \textproc{Feasible}($e_{\mathrm{return}}$) }
+\State $E := E \cup e_{\mathrm{return}}$
+\EndIf
+\EndFor
+\While {$Q \neq \emptyset$}
+\State $n := $ \textproc{Pop}($Q$)
+
+\EndWhile
+\EndIf
+\EndWhile
+\State \Return $\Psi$ 
+\end{algorithmic} 
+\end{algorithm}
+
+
+
 \printbibliography
 \end{document}
